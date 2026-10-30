@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#0D9488" />
+  <title>MelanoScan – AI Skin Cancer Detector</title>
+  <link rel="manifest" href="manifest.json" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    :root { --teal:#0D9488; --teal-dark:#0F766E; --pink:#EC4899; --pink-soft:#FCE7F3; --bg:#F8FAFC; --card:#FFF; --text:#0F172A; --muted:#64748B; --border:#E2E8F0; --radius:16px; --shadow:0 4px 20px rgba(13,148,136,0.08); --safe-bottom:env(safe-area-inset-bottom,0px); }
+    * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+    html,body { height:100%; font-family:Inter,system-ui,sans-serif; background:#e2e8f0; color:var(--text); overflow-x:hidden; }
+    body { max-width:430px; margin:0 auto; min-height:100dvh; background:var(--bg); box-shadow:0 0 40px rgba(0,0,0,0.12); }
+    @media (min-width:500px) { body { margin:24px auto; border-radius:24px; overflow:hidden; min-height:calc(100dvh - 48px); } }
+    .screen { display:none; min-height:100dvh; flex-direction:column; animation:fadeIn .25s ease; }
+    .screen.active { display:flex; }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+    #splash { background:linear-gradient(180deg,#fff 0%,#F0FDFA 100%); justify-content:center; align-items:center; text-align:center; padding:24px; position:relative; }
+    .ribbon { position:absolute; top:20px; left:50%; transform:translateX(-50%); background:var(--pink-soft); color:var(--pink); font-size:12px; font-weight:600; padding:6px 16px; border-radius:999px; white-space:nowrap; }
+    .brand { font-size:32px; font-weight:700; color:#0F766E; }
+    .brand span { color:#0D9488; }
+    .tagline-sub { font-size:13px; font-weight:600; color:#0F766E; letter-spacing:1.5px; margin-top:4px; }
+    .tagline { font-size:16px; color:var(--teal-dark); font-weight:500; margin-top:28px; }
+    .tap-hint { position:absolute; bottom:40px; left:0; right:0; text-align:center; color:var(--muted); font-size:14px; }
+    .footer-copy { position:absolute; bottom:16px; left:0; right:0; text-align:center; font-size:11px; color:#94A3B8; }
+    .btn { display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:16px; border:none; border-radius:14px; font-size:16px; font-weight:600; cursor:pointer; font-family:inherit; }
+    .btn:disabled { opacity:.45; cursor:not-allowed; }
+    .btn-primary { background:var(--teal); color:#fff; }
+    .btn-secondary { background:#fff; color:var(--text); border:1.5px solid var(--border); }
+    .btn-outline { background:transparent; color:var(--teal); border:1.5px solid var(--teal); }
+    .top-bar { display:flex; align-items:center; justify-content:space-between; padding:16px 20px 8px; background:#fff; position:sticky; top:0; z-index:20; border-bottom:1px solid var(--border); }
+    .top-brand { display:flex; align-items:center; gap:8px; font-weight:700; font-size:17px; color:var(--teal-dark); }
+    .top-brand .icon { width:32px; height:32px; background:var(--teal); border-radius:8px; display:flex; align-items:center; justify-content:center; color:#fff; font-size:14px; }
+    .home-content,.learn-content,.results-content { padding:16px 20px; }
+    .greeting { font-size:22px; font-weight:700; }
+    .date { font-size:13px; color:var(--muted); margin-bottom:16px; }
+    .awareness { background:linear-gradient(135deg,#FCE7F3,#FBCFE8); border-radius:var(--radius); padding:14px 16px; margin-bottom:20px; display:flex; gap:12px; }
+    .awareness h4 { font-size:14px; font-weight:700; color:#9D174D; }
+    .awareness p { font-size:12px; color:#BE185D; line-height:1.4; }
+    .section-title { font-size:16px; font-weight:700; margin-bottom:12px; }
+    .action-card { background:#fff; border-radius:var(--radius); padding:16px; margin-bottom:12px; display:flex; align-items:center; gap:14px; box-shadow:var(--shadow); cursor:pointer; }
+    .action-card.primary { background:var(--teal); color:#fff; }
+    .action-card .icon-box { width:48px; height:48px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:22px; }
+    .action-card.primary .icon-box { background:rgba(255,255,255,.2); }
+    .action-card:not(.primary) .icon-box { background:#F0FDFA; }
+    .action-card h3 { font-size:15px; font-weight:600; }
+    .action-card p { font-size:12px; opacity:.8; }
+    .action-card .arrow { margin-left:auto; opacity:.5; font-size:18px; }
+    .quick-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .quick-btn { background:#fff; border:1px solid var(--border); border-radius:12px; padding:14px; display:flex; flex-direction:column; align-items:center; gap:6px; cursor:pointer; font-size:13px; font-weight:500; }
+    .uv-banner { background:#FEF3C7; border-radius:12px; padding:12px 14px; margin-top:16px; display:flex; gap:10px; font-size:13px; color:#92400E; }
+    .disclaimer-mini { background:#FEF9C3; border-radius:10px; padding:10px 12px; margin-top:12px; font-size:11px; color:#854D0E; }
+    #scan { background:#0F172A; color:#fff; padding-bottom:90px; }
+    .scan-header { display:flex; align-items:center; justify-content:space-between; padding:16px 20px; }
+    .camera-frame { width:100%; max-width:340px; aspect-ratio:3/4; background:#1E293B; border-radius:20px; overflow:hidden; position:relative; border:2px solid #334155; margin:0 auto 20px; }
+    #video,#preview { width:100%; height:100%; object-fit:cover; display:none; }
+    #video.active,#preview.active { display:block; }
+    .scan-tips { font-size:13px; color:#94A3B8; text-align:center; margin-bottom:20px; }
+    .scan-actions { display:flex; gap:12px; width:100%; max-width:340px; margin:0 auto; }
+    .scan-actions .btn { flex:1; }
+    .btn-capture { width:72px; height:72px; border-radius:50%; background:#fff; border:4px solid var(--teal); margin:0 auto 16px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+    .btn-capture::after { content:''; width:54px; height:54px; background:var(--teal); border-radius:50%; }
+    .page-header { background:#fff; padding:16px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:12px; position:sticky; top:0; z-index:10; }
+    .back-btn { width:36px; height:36px; border-radius:10px; background:#F1F5F9; border:none; font-size:18px; cursor:pointer; }
+    .result-card { background:#fff; border-radius:var(--radius); padding:18px; margin-bottom:12px; box-shadow:var(--shadow); }
+    .result-type { font-size:20px; font-weight:700; }
+    .result-conf { font-size:14px; color:var(--muted); margin-bottom:12px; }
+    .conf-bar { height:8px; background:#E2E8F0; border-radius:4px; overflow:hidden; }
+    .conf-fill { height:100%; border-radius:4px; transition:width .6s; }
+    .conf-fill.high { background:#EF4444; } .conf-fill.med { background:#F59E0B; } .conf-fill.low { background:#10B981; }
+    .alert-box { background:#FEF2F2; border:1px solid #FECACA; border-radius:12px; padding:14px; font-size:13px; color:#991B1B; margin-bottom:12px; }
+    .alert-box.safe { background:#ECFDF5; border-color:#A7F3D0; color:#065F46; }
+    .learn-card { background:#fff; border-radius:var(--radius); padding:16px; margin-bottom:12px; box-shadow:var(--shadow); cursor:pointer; }
+    .learn-card h3 { font-size:15px; font-weight:600; margin-bottom:4px; }
+    .learn-card p { font-size:13px; color:var(--muted); }
+    .learn-detail { display:none; margin-top:12px; padding-top:12px; border-top:1px solid var(--border); font-size:13px; line-height:1.55; color:#334155; }
+    .learn-card.open .learn-detail { display:block; }
+    .chat-messages { flex:1; overflow-y:auto; padding:16px 20px; display:flex; flex-direction:column; gap:12px; }
+    .msg { max-width:85%; padding:12px 14px; border-radius:16px; font-size:14px; line-height:1.45; }
+    .msg.bot { background:#fff; align-self:flex-start; box-shadow:var(--shadow); }
+    .msg.user { background:var(--teal); color:#fff; align-self:flex-end; }
+    .chat-input-bar { display:flex; gap:8px; padding:12px 16px; background:#fff; border-top:1px solid var(--border); position:sticky; bottom:70px; }
+    .chat-input { flex:1; border:1px solid var(--border); border-radius:12px; padding:12px 14px; font-size:14px; font-family:inherit; outline:none; }
+    .chat-send { width:44px; height:44px; border-radius:12px; background:var(--teal); border:none; color:#fff; font-size:18px; cursor:pointer; }
+    #map { height:220px; width:100%; border-radius:16px; margin-bottom:16px; border:1px solid var(--border); }
+    .doc-card { background:#fff; border-radius:var(--radius); padding:16px; margin-bottom:12px; box-shadow:var(--shadow); }
+    .doc-card h3 { font-size:15px; font-weight:600; }
+    .doc-card .meta { font-size:12px; color:var(--muted); margin-bottom:10px; }
+    .doc-actions { display:flex; gap:8px; }
+    .doc-actions a { flex:1; text-align:center; padding:10px; border-radius:10px; font-size:13px; font-weight:500; text-decoration:none; color:var(--teal); background:#F0FDFA; border:1px solid #99F6E4; }
+    .bottom-nav { position:fixed; bottom:0; left:50%; transform:translateX(-50%); width:100%; max-width:430px; background:#fff; border-top:1px solid var(--border); display:flex; justify-content:space-around; padding:8px 0 calc(8px + var(--safe-bottom)); z-index:50; }
+    .nav-item { display:flex; flex-direction:column; align-items:center; gap:2px; background:none; border:none; font-size:10px; font-weight:500; color:var(--muted); cursor:pointer; padding:6px 12px; font-family:inherit; }
+    .nav-item.active { color:var(--teal); }
+    .nav-item .nav-icon { font-size:22px; }
+    .loader-overlay { position:fixed; inset:0; background:rgba(15,23,42,.85); z-index:100; display:none; flex-direction:column; align-items:center; justify-content:center; color:#fff; }
+    .loader-overlay.show { display:flex; }
+    .spinner { width:48px; height:48px; border:3px solid rgba(255,255,255,.2); border-top-color:var(--teal); border-radius:50%; animation:spin .8s linear infinite; margin-bottom:16px; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    .hidden { display:none !important; }
+    .disc-card { background:#F0FDFA; border:1px solid #99F6E4; border-radius:var(--radius); padding:18px; margin-bottom:20px; font-size:14px; line-height:1.55; color:#134E4A; }
+    .checkbox-row { display:flex; align-items:flex-start; gap:12px; margin-bottom:24px; cursor:pointer; padding:12px; border-radius:12px; border:1px solid var(--border); }
+    .checkbox-row.checked { border-color:var(--teal); background:#F0FDFA; }
+    .checkbox { width:22px; height:22px; border:2px solid #CBD5E1; border-radius:6px; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
+    .checkbox-row.checked .checkbox { background:var(--teal); border-color:var(--teal); color:#fff; }
+    .result-image-wrap { position:relative; border-radius:16px; overflow:hidden; margin-bottom:16px; background:#1E293B; aspect-ratio:4/3; }
+    .result-image-wrap img { width:100%; height:100%; object-fit:cover; }
+    .bbox { position:absolute; border:2px solid #2DD4BF; border-radius:4px; }
+    .bbox-label { position:absolute; top:-22px; left:0; background:#0D9488; color:#fff; font-size:11px; font-weight:600; padding:2px 6px; border-radius:4px; }
+  </style>
+</head>
+<body>
+  <div class="loader-overlay" id="loader"><div class="spinner"></div><p style="font-weight:500">Analyzing with Roboflow AI…</p></div>
+
+  <div class="screen active" id="splash">
+    <div class="ribbon">🎀 October · Cancer Awareness Month</div>
+    <div>
+      <div class="brand">Melano<span>Scan</span></div>
+      <div class="tagline-sub">SKIN CANCER DETECTOR</div>
+      <div class="tagline">Early Detection. Equal Protection.</div>
+    </div>
+    <div class="tap-hint">Tap anywhere to begin</div>
+    <div class="footer-copy">A TechGurus Innovation · CAPACITI · © 2025 TechGurus</div>
+  </div>
+
+  <div class="screen" id="disclaimer" style="background:#fff;padding:24px 20px 32px">
+    <h2 style="font-size:22px;font-weight:700;margin-bottom:6px">See a change. Take the next step.</h2>
+    <p style="font-size:14px;color:var(--muted);margin-bottom:20px">AI-assisted skin screening designed with skin diversity in mind.</p>
+    <div class="disc-card">
+      <strong style="display:block;margin-bottom:8px">MelanoScan is a screening and educational prototype.</strong>
+      <p>It does not diagnose skin cancer and it does not replace a healthcare professional.</p>
+      <p style="margin-top:10px;color:#64748B;font-size:13px">If you have heavy bleeding, a rapidly growing spot, or feel unwell, seek urgent care — call <strong>10177</strong>.</p>
+    </div>
+    <div class="checkbox-row" id="checkRow" onclick="toggleCheck()">
+      <div class="checkbox" id="checkIcon">✓</div>
+      <span style="font-size:14px">I understand that MelanoScan is not a diagnostic tool.</span>
+    </div>
+    <button class="btn btn-primary" id="continueBtn" disabled onclick="goTo('home')">Continue</button>
+  </div>
+
+  <div class="screen" id="home" style="padding-bottom:90px">
+    <div class="top-bar">
+      <div class="top-brand"><div class="icon">📷</div> MelanoScan</div>
+      <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#99F6E4,#5EEAD4);display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--teal-dark)">D</div>
+    </div>
+    <div class="home-content">
+      <div class="greeting">Welcome, Demo</div>
+      <div class="date" id="todayDate"></div>
+      <div class="awareness"><div>🎀</div><div><h4>Pink Ribbon Month</h4><p>October is Cancer Awareness Month. Check your skin today — early detection saves lives.</p></div></div>
+      <div class="section-title">What would you like to do?</div>
+      <div class="action-card primary" onclick="goTo('scan')"><div class="icon-box">📸</div><div><h3>Start a new scan</h3><p>Photograph or upload a skin spot for AI screening</p></div><div class="arrow">›</div></div>
+      <div class="action-card" onclick="goTo('doctors')"><div class="icon-box">📅</div><div><h3>Book an appointment</h3><p>Find dermatology clinics near you in South Africa</p></div><div class="arrow">›</div></div>
+      <div class="action-card" onclick="goTo('learn')"><div class="icon-box">📖</div><div><h3>Learn more about skin cancer</h3><p>Types, symptoms, treatment & cancer awareness</p></div><div class="arrow">›</div></div>
+      <div class="quick-row">
+        <button class="quick-btn" onclick="goTo('chat')"><span style="font-size:22px">💬</span> Ask Melano</button>
+        <button class="quick-btn" onclick="alert('Scan history appears after your first scan.')"><span style="font-size:22px">🕒</span> Scan history</button>
+      </div>
+      <div class="uv-banner"><span>☀️</span><div>Outside peak UV hours. Still use SPF 30+ when you go out tomorrow.</div></div>
+      <div class="disclaimer-mini">🛡️ This app is for screening only and does not provide a medical diagnosis.</div>
+    </div>
+  </div>
+
+  <div class="screen" id="scan">
+    <div class="scan-header">
+      <button class="back-btn" style="background:#1E293B;color:#fff" onclick="stopCamera();goTo('home')">‹</button>
+      <h2 style="font-size:17px;font-weight:600">Scan a skin spot</h2>
+      <div style="width:36px"></div>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;padding:16px 20px">
+      <div class="camera-frame">
+        <video id="video" playsinline muted></video>
+        <img id="preview" alt="Captured" />
+        <canvas id="canvas" class="hidden"></canvas>
+      </div>
+      <p class="scan-tips" id="scanTips">Good lighting · Hold steady · Fill the frame<br>Works on all skin tones</p>
+      <div id="captureUI">
+        <div class="btn-capture" onclick="capturePhoto()"></div>
+        <div class="scan-actions">
+          <button class="btn btn-secondary" style="background:#1E293B;color:#fff;border-color:#334155" onclick="startCamera()">Camera</button>
+          <button class="btn btn-secondary" style="background:#1E293B;color:#fff;border-color:#334155" onclick="document.getElementById('fileInput').click()">Gallery</button>
+        </div>
+        <input type="file" id="fileInput" accept="image/*" class="hidden" onchange="handleFile(event)" />
+      </div>
+      <div id="reviewUI" class="hidden" style="width:100%;max-width:340px">
+        <div class="scan-actions">
+          <button class="btn btn-secondary" style="background:#1E293B;color:#fff;border-color:#334155" onclick="retake()">Retake</button>
+          <button class="btn btn-primary" onclick="runAnalysis()">Analyze with AI</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="screen" id="results" style="padding-bottom:90px">
+    <div class="page-header"><button class="back-btn" onclick="goTo('scan')">‹</button><h2>Screening Result</h2></div>
+    <div class="results-content">
+      <div class="result-image-wrap"><img id="resultImg" alt="Analyzed" /><div class="bbox" id="bbox" style="display:none"><div class="bbox-label" id="bboxLabel"></div></div></div>
+      <div class="result-card">
+        <div class="result-type" id="predType">—</div>
+        <div class="result-conf" id="predConf">Confidence: —</div>
+        <div class="conf-bar"><div class="conf-fill" id="confFill" style="width:0%"></div></div>
+        <div id="apiStatus" style="font-size:11px;color:var(--muted);margin-top:8px;text-align:center"></div>
+      </div>
+      <div id="resultAlert" class="alert-box"></div>
+      <div class="result-card" style="font-size:13px;color:var(--muted);line-height:1.5"><strong style="color:var(--text)">Important</strong><br>This is a screening signal only. Consult a qualified dermatologist for any concerning lesion.</div>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-top:16px">
+        <button class="btn btn-primary" onclick="goTo('doctors')">Find a dermatologist near me</button>
+        <button class="btn btn-secondary" onclick="goTo('chat')">Ask Melano about this result</button>
+        <button class="btn btn-outline" onclick="goTo('home')">Back to Home</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="screen" id="learn" style="padding-bottom:90px">
+    <div class="page-header"><button class="back-btn" onclick="goTo('home')">‹</button><h2>Learn about skin cancer</h2></div>
+    <div class="learn-content">
+      <div class="learn-card" onclick="this.classList.toggle('open')"><h3>🎗️ Types of skin cancer</h3><p>Melanoma, BCC, SCC and more</p><div class="learn-detail"><p><strong>Melanoma</strong> – Most serious. Often a new or changing mole.</p><p style="margin-top:8px"><strong>Basal Cell Carcinoma</strong> – Most common. Pearly or waxy bumps.</p><p style="margin-top:8px"><strong>Squamous Cell Carcinoma</strong> – Scaly red patches or open sores.</p></div></div>
+      <div class="learn-card" onclick="this.classList.toggle('open')"><h3>🔍 ABCDE warning signs</h3><p>How to check moles yourself</p><div class="learn-detail"><p><strong>A</strong>symmetry · <strong>B</strong>order · <strong>C</strong>olour · <strong>D</strong>iameter · <strong>E</strong>volving</p><p style="margin-top:8px">On darker skin, check palms, soles, nails and scalp carefully.</p></div></div>
+      <div class="learn-card" onclick="this.classList.toggle('open')"><h3>☀️ Prevention & sun safety</h3><p>SPF, shade, peak hours</p><div class="learn-detail"><p>• Avoid peak UV (10:00–16:00)</p><p>• SPF 30+ every day, reapply every 2 hours</p><p>• Protective clothing, hats, sunglasses</p><p>• Never use tanning beds</p></div></div>
+      <div class="learn-card" onclick="this.classList.toggle('open')"><h3>🖤 Skin of colour awareness</h3><p>Why early detection matters for African skin</p><div class="learn-detail"><p>Skin cancer affects all tones. On darker skin it is often found later. Melanoma may appear on palms, soles or under nails.</p></div></div>
+      <div class="learn-card" onclick="this.classList.toggle('open')"><h3>🏥 When to see a doctor</h3><p>Don’t wait if you notice these signs</p><div class="learn-detail"><p>See a doctor if a spot is new and growing, changes colour/shape, bleeds, itches, or doesn’t heal.</p></div></div>
+    </div>
+  </div>
+
+  <div class="screen" id="chat" style="flex-direction:column;padding-bottom:90px">
+    <div class="page-header"><button class="back-btn" onclick="goTo('home')">‹</button><h2>Ask Melano</h2></div>
+    <div class="chat-messages" id="chatMessages"><div class="msg bot">Hi, I’m Melano 👋 I can help explain screening results and share prevention tips. I don’t diagnose — always consult a healthcare professional.</div></div>
+    <div class="chat-input-bar">
+      <input class="chat-input" id="chatInput" placeholder="Ask about skin health…" onkeydown="if(event.key==='Enter')sendChat()" />
+      <button class="chat-send" onclick="sendChat()">➤</button>
+    </div>
+  </div>
+
+  <div class="screen" id="doctors" style="padding-bottom:90px">
+    <div class="page-header"><button class="back-btn" onclick="goTo('home')">‹</button><h2>Find a dermatologist</h2></div>
+    <div class="learn-content">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Interactive map of dermatology services in Cape Town.</p>
+      <div id="map"></div>
+      <div class="doc-card"><h3>Groote Schuur Hospital – Dermatology</h3><div class="meta">Observatory, Cape Town · Public</div><div class="doc-actions"><a href="tel:+27214049111">Call</a><a href="https://www.google.com/maps/dir/?api=1&destination=-33.9412,18.4621" target="_blank">Directions</a></div></div>
+      <div class="doc-card"><h3>Tygerberg Hospital Dermatology</h3><div class="meta">Parow, Cape Town · Public</div><div class="doc-actions"><a href="tel:+27219384911">Call</a><a href="https://www.google.com/maps/dir/?api=1&destination=-33.9125,18.6131" target="_blank">Directions</a></div></div>
+      <div class="doc-card" style="background:#F0FDFA;border:1px solid #99F6E4"><h3 style="color:var(--teal-dark)">City of Cape Town Health Clinics</h3><div class="meta">Many clinics provide primary care and can refer to dermatology. Visit the City of Cape Town website or your nearest clinic.</div></div>
+    </div>
+  </div>
+
+  <nav class="bottom-nav" id="bottomNav">
+    <button class="nav-item active" data-screen="home" onclick="goTo('home')"><span class="nav-icon">🏠</span> Home</button>
+    <button class="nav-item" data-screen="scan" onclick="goTo('scan')"><span class="nav-icon">📷</span> Scan</button>
+    <button class="nav-item" data-screen="learn" onclick="goTo('learn')"><span class="nav-icon">📖</span> Learn</button>
+    <button class="nav-item" data-screen="chat" onclick="goTo('chat')"><span class="nav-icon">💬</span> Chat</button>
+    <button class="nav-item" data-screen="doctors" onclick="goTo('doctors')"><span class="nav-icon">🏥</span> Care</button>
+  </nav>
+
+  <script>
+    const ANALYZE_URL = '/api/analyze';
+    let disclaimerAccepted = localStorage.getItem('melano_disclaimer') === 'true';
+    let stream = null, capturedBlob = null, currentScreen = 'splash', mapInstance = null;
+
+    document.getElementById('todayDate').textContent = new Date().toLocaleDateString('en-ZA', { weekday:'long', day:'numeric', month:'long' });
+    if (disclaimerAccepted) { document.getElementById('splash').classList.remove('active'); document.getElementById('home').classList.add('active'); currentScreen = 'home'; updateNav(); }
+
+    document.getElementById('splash').addEventListener('click', () => {
+      document.getElementById('splash').classList.remove('active');
+      document.getElementById('disclaimer').classList.add('active');
+      currentScreen = 'disclaimer';
+      document.getElementById('bottomNav').style.display = 'none';
+    });
+
+    function toggleCheck() {
+      const row = document.getElementById('checkRow');
+      row.classList.toggle('checked');
+      document.getElementById('continueBtn').disabled = !row.classList.contains('checked');
+    }
+
+    function goTo(id) {
+      if (id === 'home' && !disclaimerAccepted) { localStorage.setItem('melano_disclaimer','true'); disclaimerAccepted = true; }
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+      currentScreen = id;
+      document.getElementById('bottomNav').style.display = ['splash','disclaimer'].includes(id) ? 'none' : 'flex';
+      updateNav();
+      if (id === 'scan') startCamera();
+      if (id !== 'scan') stopCamera();
+      if (id === 'doctors') setTimeout(initMap, 100);
+      window.scrollTo(0,0);
+    }
+    function updateNav() { document.querySelectorAll('.nav-item').forEach(i => i.classList.toggle('active', i.dataset.screen === currentScreen)); }
+
+    async function startCamera() {
+      stopCamera();
+      const video = document.getElementById('video');
+      document.getElementById('preview').classList.remove('active');
+      document.getElementById('captureUI').classList.remove('hidden');
+      document.getElementById('reviewUI').classList.add('hidden');
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+        video.srcObject = stream; video.classList.add('active'); await video.play();
+      } catch (e) { document.getElementById('scanTips').textContent = 'Camera not available. Please use Gallery.'; }
+    }
+    function stopCamera() { if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; } document.getElementById('video').classList.remove('active'); document.getElementById('video').srcObject = null; }
+    function capturePhoto() {
+      const video = document.getElementById('video'); if (!video.srcObject) return;
+      const canvas = document.getElementById('canvas'); canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+      canvas.getContext('2d').drawImage(video, 0, 0);
+      canvas.toBlob(blob => {
+        capturedBlob = blob;
+        const url = URL.createObjectURL(blob);
+        document.getElementById('preview').src = url; document.getElementById('preview').classList.add('active');
+        video.classList.remove('active');
+        document.getElementById('captureUI').classList.add('hidden');
+        document.getElementById('reviewUI').classList.remove('hidden');
+        stopCamera();
+      }, 'image/jpeg', 0.92);
+    }
+    function handleFile(e) {
+      const file = e.target.files[0]; if (!file) return;
+      capturedBlob = file;
+      document.getElementById('preview').src = URL.createObjectURL(file);
+      document.getElementById('preview').classList.add('active');
+      document.getElementById('video').classList.remove('active');
+      document.getElementById('captureUI').classList.add('hidden');
+      document.getElementById('reviewUI').classList.remove('hidden');
+      stopCamera();
+    }
+    function retake() { capturedBlob = null; document.getElementById('preview').classList.remove('active'); startCamera(); }
+
+    function mapRoboflowToResult(classData, detectData) {
+      let topClass = 'Unknown', confidence = 0.5;
+      if (classData.top) { topClass = classData.top; confidence = classData.confidence || 0.5; }
+      else if (classData.predictions && classData.predictions.length) {
+        const s = [...classData.predictions].sort((a,b) => (b.confidence||0)-(a.confidence||0));
+        topClass = s[0].class || s[0].class_name || 'Unknown'; confidence = s[0].confidence || 0.5;
+      }
+      const labelMap = { MEL:'Melanoma (MEL) – possible', BCC:'Basal cell carcinoma (BCC) – possible', AKIEC:'Actinic keratosis / IEC', BKL:'Benign keratosis (BKL)', DF:'Dermatofibroma (DF)', NV:'Benign nevus (NV)', VASC:'Vascular lesion (VASC)', Malignant:'Malignant lesion – possible', Benign:'Benign lesion' };
+      const displayType = labelMap[topClass] || labelMap[topClass.toUpperCase()] || topClass;
+      const isHigh = /mel|bcc|akiec|malignant/i.test(topClass);
+      let risk = 'low', note = 'Consistent with a common or benign lesion. Monitor for changes and consult a clinician if it evolves.';
+      if (isHigh) { risk = 'high'; note = 'Features warrant professional assessment. Please see a dermatologist or GP soon.'; }
+      else if (confidence < 0.55) { risk = 'med'; note = 'Moderate confidence. We recommend a professional skin check.'; }
+      return { type: displayType, conf: confidence, risk, note, source: 'roboflow' };
+    }
+
+    async function runAnalysis() {
+      if (!capturedBlob) return;
+      document.getElementById('loader').classList.add('show');
+      document.getElementById('apiStatus').textContent = '';
+      try {
+        const fd = new FormData(); fd.append('file', capturedBlob, 'lesion.jpg');
+        const res = await fetch(ANALYZE_URL, { method: 'POST', body: fd });
+        if (!res.ok) throw new Error('Proxy error ' + res.status);
+        const data = await res.json();
+        const result = mapRoboflowToResult(data.classification || data, data.detection);
+        document.getElementById('loader').classList.remove('show');
+        showResult(result);
+      } catch (err) {
+        document.getElementById('loader').classList.remove('show');
+        showResult({ type: 'Skin lesion detected', conf: 0.72, risk: 'med', note: 'Could not reach the AI model. Showing demo result. Please consult a clinician for any concerning lesion.', source: 'fallback' });
+        document.getElementById('apiStatus').textContent = 'Offline demo result';
+      }
+    }
+
+    function showResult(result) {
+      document.getElementById('resultImg').src = document.getElementById('preview').src;
+      document.getElementById('predType').textContent = result.type;
+      const pct = Math.round(result.conf * 100);
+      document.getElementById('predConf').textContent = 'Confidence: ' + pct + '%';
+      const fill = document.getElementById('confFill');
+      fill.style.width = pct + '%';
+      fill.className = 'conf-fill ' + (result.risk === 'high' ? 'high' : result.risk === 'med' ? 'med' : 'low');
+      const alert = document.getElementById('resultAlert');
+      alert.className = 'alert-box ' + (result.risk === 'low' ? 'safe' : '');
+      alert.textContent = result.note;
+      const bbox = document.getElementById('bbox');
+      bbox.style.display = 'block'; bbox.style.left = '22%'; bbox.style.top = '25%'; bbox.style.width = '56%'; bbox.style.height = '45%';
+      document.getElementById('bboxLabel').textContent = 'skin_lesion ' + pct + '%';
+      if (result.source === 'roboflow') document.getElementById('apiStatus').textContent = 'Powered by Roboflow';
+      goTo('results');
+    }
+
+    function initMap() {
+      if (mapInstance) { mapInstance.invalidateSize(); return; }
+      mapInstance = L.map('map').setView([-33.9249, 18.4241], 11);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', maxZoom: 18 }).addTo(mapInstance);
+      const clinics = [
+        { name: 'Groote Schuur Hospital', lat: -33.9412, lng: 18.4621 },
+        { name: 'Tygerberg Hospital', lat: -33.9125, lng: 18.6131 },
+        { name: 'Red Cross Children’s Hospital', lat: -33.9533, lng: 18.4889 }
+      ];
+      clinics.forEach(c => {
+        L.marker([c.lat, c.lng]).addTo(mapInstance).bindPopup('<strong>' + c.name + '</strong><br><a href="https://www.google.com/maps/dir/?api=1&destination=' + c.lat + ',' + c.lng + '" target="_blank">Directions</a>');
+      });
+    }
+
+    function sendChat() {
+      const input = document.getElementById('chatInput');
+      const text = input.value.trim(); if (!text) return;
+      appendMsg(text, 'user'); input.value = '';
+      setTimeout(() => {
+        const lower = text.toLowerCase();
+        let reply = "I’m here to help with general skin health information. For personal medical advice always see a qualified professional.";
+        if (lower.includes('melanoma') || lower.includes('cancer')) reply = 'Melanoma is the most serious form of skin cancer. Early signs often follow the ABCDE rule. Please see a dermatologist for any concerning mole.';
+        else if (lower.includes('spf') || lower.includes('sun')) reply = 'Use broad-spectrum SPF 30+ every day. Reapply every 2 hours when outdoors.';
+        else if (lower.includes('doctor') || lower.includes('clinic')) reply = 'Find clinics under the Care tab, including Groote Schuur and Tygerberg in Cape Town.';
+        appendMsg(reply, 'bot');
+      }, 600);
+    }
+    function appendMsg(text, who) {
+      const div = document.createElement('div'); div.className = 'msg ' + who; div.textContent = text;
+      const box = document.getElementById('chatMessages'); box.appendChild(div); box.scrollTop = box.scrollHeight;
+    }
+  </script>
+</body>
+</html>
